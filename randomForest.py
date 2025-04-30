@@ -9,6 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from FrameDataset import SquatKneeFrameDataset
 import numpy as np
+import joblib
 
 def add_temporal_features(data, column_index=0, lag=3):
     """
@@ -58,9 +59,9 @@ def add_temporal_features(data, column_index=0, lag=3):
 train_dataset = SquatKneeFrameDataset("Squat_Train.csv", threshold_pct=50, sigma=2.0)
 test_dataset = SquatKneeFrameDataset("Squat_Test.csv", threshold_pct=50, sigma=2.0)
 # Extract the features and labels
-X_train = add_temporal_features(train_dataset.data)  # Feature matrix (angles)
+X_train = train_dataset.data  # Feature matrix (angles)
 y_train = train_dataset.labels  # Labels (UP or DOWN)
-X_test = add_temporal_features(test_dataset.data)  # Feature matrix (angles)
+X_test = test_dataset.data  # Feature matrix (angles)
 y_test = test_dataset.labels  # Labels (UP or DOWN)
 
 # --- RANDOM FOREST HYPERPARAMETER TUNING ---
@@ -167,4 +168,59 @@ plot_importance(best_xgb_model, importance_type='weight', max_num_features=10, h
 plt.title('XGBoost Feature Importance')
 plt.show()
 
-print()
+# --- PLOT RANDOM FOREST VALIDATION ACCURACY OVER GRID SEARCH ---
+
+# Extract mean validation scores for each hyperparameter combination
+rf_results = rf_grid_search.cv_results_
+mean_test_scores = rf_results['mean_test_score']
+params = rf_results['params']
+
+# Create a DataFrame for easier plotting
+rf_scores_df = pd.DataFrame(params)
+rf_scores_df['mean_test_score'] = mean_test_scores
+
+# Sort by validation score
+rf_scores_df = rf_scores_df.sort_values(by='mean_test_score', ascending=False)
+
+# Plot
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(rf_scores_df)), rf_scores_df['mean_test_score'], marker='o')
+plt.title('Random Forest Validation Accuracy over Hyperparameter Search')
+plt.xlabel('Hyperparameter Combination')
+plt.ylabel('Validation Accuracy')
+plt.grid()
+plt.show()
+
+# Save the best Random Forest model
+joblib.dump(best_rf_model, "models/best_rf_model.pkl")
+print("Random Forest model saved successfully!")
+
+# Extract mean validation scores for each hyperparameter combination
+xgb_results = xgb_grid_search.cv_results_
+mean_test_scores = xgb_results['mean_test_score']
+params = xgb_results['params']
+
+# Create a DataFrame for easier plotting
+xgb_scores_df = pd.DataFrame(params)
+xgb_scores_df['mean_test_score'] = mean_test_scores
+
+# Sort by validation score
+xgb_scores_df = xgb_scores_df.sort_values(by='mean_test_score', ascending=False)
+
+# Plot
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(xgb_scores_df)), xgb_scores_df['mean_test_score'], marker='o')
+plt.title('Random Forest Validation Accuracy over Hyperparameter Search')
+plt.xlabel('Hyperparameter Combination')
+plt.ylabel('Validation Accuracy')
+plt.grid()
+plt.show()
+
+# Save the best Random Forest model
+joblib.dump(best_xgb_model, "models/best_xgb_model.pkl")
+print("Random Forest model saved successfully!")
+
+# Save it
+joblib.dump(train_dataset.scaler, "models/scaler.pkl")
+print("Scaler saved successfully!")
+
